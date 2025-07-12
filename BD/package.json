@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Backend for Portfolio (BD)",
   "scripts": {
-    "build": "node build.js",
+    "build": "next build",
     "dev": "next dev",
     "dev:port": "cross-env PORT=4000 next dev",
     "lint": "next lint",
