@@ -47,8 +47,8 @@ export default function ProjectsSection() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Using NEXT_PUBLIC_FRONTEND_URL from your environment
-  const API_BASE_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || "https://venu-profile.vercel.app";
+  // Using NEXT_PUBLIC_API_URL from your environment
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://portfolio-api-seven-mu.vercel.app";
 
   useEffect(() => {
     const fetchProjects = async () => {
