@@ -23,15 +23,15 @@ const contactInfo = [
   {
     icon: Mail,
     label: "Email",
-    value: "venuthota721@gmail.com",
-    href: "mailto:venuthota721@gmail.com",
+    value: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "contact@example.com",
+    href: `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || "contact@example.com"}`,
     color: "from-blue-500 to-cyan-500",
   },
   {
     icon: Phone,
     label: "Phone",
-    value: "+91 95055 11839",
-    href: "tel:+919505511839",
+    value: process.env.NEXT_PUBLIC_CONTACT_PHONE || "+1 234 567 8900",
+    href: `tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE || "+12345678900"}`,
     color: "from-green-500 to-emerald-500",
   },
   {

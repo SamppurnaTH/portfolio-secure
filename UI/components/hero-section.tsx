@@ -126,7 +126,7 @@ export default function HeroSection() {
   const handleQuickEmail = () => {
     const subject = "Opportunity for Collaboration"
     const body = `Hello Venu,\n\nI saw your portfolio and would like to discuss a potential collaboration.\n\nBest regards,\n[Your Name]`
-    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=venuthota721@example.com&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank')
+            window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@example.com'}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank')
     setShowContactModal(false)
   }
 

@@ -43,7 +43,7 @@ const BOT_RESPONSES = {
   },
   contact: {
     message:
-      "📧 Email: venuthota721@gmail.com\n📱 Phone: +91 95055 11839\n📍 Location: Chandrasekhara Puram, Kanigiri, Prakasam",
+      `📧 Email: ${process.env.CONTACT_EMAIL || 'contact@example.com'}\n📱 Phone: ${process.env.CONTACT_PHONE || '+1 234 567 8900'}\n📍 Location: ${process.env.CONTACT_LOCATION || 'Your Location'}`,
   },
   skills: {
     message:

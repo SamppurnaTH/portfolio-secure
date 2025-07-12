@@ -14,10 +14,10 @@ const updateSchema = z.object({
 
 // ✅ Simulated admin profile
 let adminProfile = {
-  name: 'Venu Thota',
-  email: 'venuthota721@gmail.com',
+  name: process.env.ADMIN_NAME || 'Admin User',
+  email: process.env.ADMIN_EMAIL || 'admin@example.com',
   photo: '/admin-avatar.png',
-  passwordHash: bcrypt.hashSync('admin123', 10), // Simulated stored password
+  passwordHash: bcrypt.hashSync(process.env.ADMIN_DEFAULT_PASSWORD || 'admin123', 10), // Simulated stored password
 }
 
 // ✅ Handle CORS Preflight
