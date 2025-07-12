@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://venu-api-samppurnaths-projects.vercel.app",
+    "NEXT_PUBLIC_SITE_NAME": "VenuPortfolio",
+    "NEXT_PUBLIC_SITE_URL": "https://venu-portfolio.vercel.app",
+    "NODE_ENV": "production"
+  }
+} 

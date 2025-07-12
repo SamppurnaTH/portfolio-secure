@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://venu-api-samppurnaths-projects.vercel.app",
+    "NEXT_PUBLIC_API_BASE": "https://venu-api-samppurnaths-projects.vercel.app",
+    "NEXT_PUBLIC_USE_PROXY": "false",
+    "NEXT_PUBLIC_SITE_NAME": "Venu Thota - Admin",
+    "NEXT_PUBLIC_SITE_URL": "https://venu-admin-samppurnaths-projects.vercel.app"
+  }
+} 
