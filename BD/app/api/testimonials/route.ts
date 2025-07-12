@@ -64,12 +64,12 @@ export async function GET(request: NextRequest) {
     if (searchTerm) {
       const sanitizedSearch = sanitizeSearchTerm(searchTerm);
       if (sanitizedSearch) {
-        query.$or = [
+      query.$or = [
           { name: { $regex: sanitizedSearch, $options: 'i' } },
           { content: { $regex: sanitizedSearch, $options: 'i' } },
           { company: { $regex: sanitizedSearch, $options: 'i' } },
           { role: { $regex: sanitizedSearch, $options: 'i' } },
-        ];
+      ];
       }
     }
     if (statusFilter && statusFilter !== 'all') {

@@ -94,12 +94,12 @@ export const POST = requireAdmin(async (request: NextRequest) => {
         request
       );
     }
-      } catch (error) {
-      return withCors(
-        NextResponse.json({ message: 'Failed to upload image.' }, { status: 500 }),
-        request
-      );
-    }
+  } catch (error) {
+    return withCors(
+      NextResponse.json({ message: 'Failed to upload image.' }, { status: 500 }),
+      request
+    );
+  }
   });
 
 export async function GET(request: NextRequest) {

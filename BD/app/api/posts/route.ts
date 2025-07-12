@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
     if (search) {
       const sanitizedSearch = sanitizeSearchTerm(search);
       if (sanitizedSearch) {
-        query.$or = [
+      query.$or = [
           { title: { $regex: sanitizedSearch, $options: "i" } },
           { content: { $regex: sanitizedSearch, $options: "i" } },
           { tags: { $in: [new RegExp(sanitizedSearch, "i")] } },
-        ];
+      ];
       }
     }
 
