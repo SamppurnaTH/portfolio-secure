@@ -1,0 +1,31 @@
+# .gitignore
+**/node_modules
+.next
+dist
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.DS_Store
+.vscode
+*.log
+
+# Security and sensitive files
+.env.template
+security-test.js
+cleanup-sensitive-data.js
+SECURITY_REPORT.md
+
+# Build outputs
+build/
+out/
+.vercel/
+
+# IDE files
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
