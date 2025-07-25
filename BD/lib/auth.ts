@@ -2,41 +2,44 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
-import { withCors } from "./cors"; // Make sure this path is correct relative to lib/auth.ts
+import { withCors } from "./cors";
 import type { User } from "./models/User";
 
-// Ensure JWT_SECRET is loaded
-const JWT_SECRET = process.env.JWT_SECRET;
+// Ensure JWT_SECRET is loaded and properly typed
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET must be defined in environment");
 }
 
-interface DecodedToken {
+interface DecodedToken extends jwt.JwtPayload {
   userId: string;
   email: string;
   role: string;
-  iat: number;
-  exp: number;
 }
 
 // ✅ Generate a JWT token
 export function generateToken(user: User): string {
-  return jwt.sign(
-    {
-      userId: user._id,
-      email: user.email,
-      role: user.role,
-    },
-    JWT_SECRET,
-    { expiresIn: "7d" }
-  );
+  const payload = {
+    userId: user._id,
+    email: user.email,
+    role: user.role
+  };
+
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }
 
-// ✅ Verify a JWT token
+// ✅ Verify a JWT token with proper type checking
 export function verifyToken(token: string): DecodedToken | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as DecodedToken;
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Type guard to ensure the decoded token matches our interface
+    if (typeof decoded === "object" && decoded !== null && 
+        "userId" in decoded && "email" in decoded && "role" in decoded) {
+      return decoded as DecodedToken;
+    }
+    return null;
   } catch (error) {
     return null;
   }
@@ -48,7 +51,10 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 // ✅ Compare password with hash
-export async function comparePassword(password: string, hashedPassword: string): Promise<boolean> {
+export async function comparePassword(
+  password: string, 
+  hashedPassword: string
+): Promise<boolean> {
   return bcrypt.compare(password, hashedPassword);
 }
 
@@ -62,11 +68,15 @@ export function generateSlug(title: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// ✅ Admin-only middleware for API routes (Next.js API Handler or Route Handler)
-export async function authenticateRequest(request: NextRequest): Promise<NextResponse | { user: DecodedToken }> {
+// ✅ Admin-only middleware for API routes
+export async function authenticateRequest(
+  request: NextRequest
+): Promise<NextResponse | { user: DecodedToken }> {
   // Try to get token from Authorization header
   const authHeader = request.headers.get("authorization");
-  const tokenFromHeader = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const tokenFromHeader = authHeader?.startsWith("Bearer ") 
+    ? authHeader.slice(7) 
+    : null;
 
   // Or fallback to cookie
   const tokenFromCookie = request.cookies.get("auth-token")?.value;
@@ -75,7 +85,7 @@ export async function authenticateRequest(request: NextRequest): Promise<NextRes
   if (!token) {
     return withCors(
       NextResponse.json({ error: "No token provided" }, { status: 401 }),
-      request // <--- ADDED 'request' HERE
+      request
     );
   }
 
@@ -83,23 +93,27 @@ export async function authenticateRequest(request: NextRequest): Promise<NextRes
   if (!decoded) {
     return withCors(
       NextResponse.json({ error: "Invalid or expired token" }, { status: 401 }),
-      request // <--- ADDED 'request' HERE
+      request
     );
   }
 
   if (decoded.role !== "admin") {
     return withCors(
       NextResponse.json({ error: "Admin access required" }, { status: 403 }),
-      request // <--- ADDED 'request' HERE
+      request
     );
   }
 
-  // ✅ Return user info if authorized
   return { user: decoded };
 }
 
+// Utility type for authenticated requests
+export type AuthenticatedRequest = NextRequest & {
+  user: DecodedToken;
+};
+
 // Export all utilities
-export default {
+export const authUtils = {
   generateToken,
   verifyToken,
   hashPassword,

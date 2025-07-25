@@ -12,13 +12,12 @@ export async function OPTIONS(request: NextRequest) {
   return handleOptions(request);
 }
 
-// ------------------------------------
-// GET: Serve resume from local file system
-// ------------------------------------
 export async function GET(request: NextRequest) {
   try {
     const fileBuffer = await fs.readFile(RESUME_PATH);
-    return new NextResponse(fileBuffer, {
+    
+    // Create response and apply CORS
+    const response = new NextResponse(fileBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
@@ -27,44 +26,61 @@ export async function GET(request: NextRequest) {
         "Cache-Control": "public, max-age=3600",
       },
     });
+    
+    return withCors(response, request);
+    
   } catch (error) {
     console.error("GET /resume error:", error);
-    return new NextResponse(
+    const errorResponse = new NextResponse(
       JSON.stringify({ message: "Resume not found." }),
       { status: 404, headers: { "Content-Type": "application/json" } }
     );
+    return withCors(errorResponse, request);
   }
 }
 
-// ------------------------------------
-// POST: Upload resume to local file system
-// ------------------------------------
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate first
     const authResponse = await authenticateRequest(request);
-    if (authResponse instanceof NextResponse) return authResponse;
+    if (authResponse instanceof NextResponse) {
+      return withCors(authResponse, request);
+    }
 
+    // Process file upload
     let formData;
     try {
       formData = await request.formData();
     } catch (err) {
       console.error("[UPLOAD] Error parsing form data:", err);
-      return NextResponse.json({ message: "Invalid form data." }, { status: 400 });
+      return withCors(
+        NextResponse.json({ message: "Invalid form data." }, { status: 400 }),
+        request
+      );
     }
 
     const file = (formData.get("file") || formData.get("resume")) as File | null;
     if (!file) {
-      return NextResponse.json({ message: "No file uploaded." }, { status: 400 });
+      return withCors(
+        NextResponse.json({ message: "No file uploaded." }, { status: 400 }),
+        request
+      );
     }
 
     if (file.type !== "application/pdf") {
-      return NextResponse.json({ message: "Only PDF files are allowed." }, { status: 400 });
+      return withCors(
+        NextResponse.json({ message: "Only PDF files are allowed." }, { status: 400 }),
+        request
+      );
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { message: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit.` },
-        { status: 400 }
+      return withCors(
+        NextResponse.json(
+          { message: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit.` },
+          { status: 400 }
+        ),
+        request
       );
     }
 
@@ -75,17 +91,24 @@ export async function POST(request: NextRequest) {
       await fs.writeFile(RESUME_PATH, buffer);
     } catch (writeErr) {
       console.error("[UPLOAD] Failed to save file locally:", writeErr);
-      return NextResponse.json({ message: "Failed to save resume." }, { status: 500 });
+      return withCors(
+        NextResponse.json({ message: "Failed to save resume." }, { status: 500 }),
+        request
+      );
     }
 
-    const resumeUrl = `${request.nextUrl.origin}/uploads/${RESUME_FILENAME}`;
-
-    return NextResponse.json({
+    const successResponse = NextResponse.json({
       message: "Resume uploaded successfully.",
-      data: { url: resumeUrl },
+      data: { url: `${request.nextUrl.origin}/uploads/${RESUME_FILENAME}` },
     });
+    
+    return withCors(successResponse, request);
+    
   } catch (error) {
     console.error("POST /resume error:", error);
-    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
+    return withCors(
+      NextResponse.json({ message: "Internal server error." }, { status: 500 }),
+      request
+    );
   }
 }

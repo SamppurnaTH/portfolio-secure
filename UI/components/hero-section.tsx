@@ -6,7 +6,7 @@ import { Download, Mail, Github, Linkedin, Code, Database, Shield, Brain, Loader
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { z } from "zod"
-import { toast } from "sonner"; // Add this import if you use sonner for toasts
+import { toast } from "sonner"
 
 // Define types
 interface AnimatedParticle {
@@ -57,6 +57,16 @@ const socialLinks: SocialLink[] = [
   { icon: Linkedin, href: "https://www.linkedin.com/in/thotavenkatavenu", label: "LinkedIn" },
 ]
 
+const budgetOptions = [
+  { value: "10000-25000", label: "₹10,000 - ₹25,000" },
+  { value: "25000-50000", label: "₹25,000 - ₹50,000" },
+  { value: "50000-100000", label: "₹50,000 - ₹1,00,000" },
+  { value: "100000-250000", label: "₹1,00,000 - ₹2,50,000" },
+  { value: "250000-500000", label: "₹2,50,000 - ₹5,00,000" },
+  { value: "500000+", label: "₹5,00,000+" },
+  { value: "undecided", label: "Budget not decided yet" }
+]
+
 export default function HeroSection() {
   const [currentRole, setCurrentRole] = useState(0)
   const [animatedParticles, setAnimatedParticles] = useState<AnimatedParticle[]>([])
@@ -72,32 +82,24 @@ export default function HeroSection() {
     email: '',
     message: '',
     projectType: 'freelance',
-    budget: '50000-250000',
+    budget: '50000-100000',
     company: ''
   })
 
-  // Define API_BASE for consistent use
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+  // Define API_BASE with fallback
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
   // Effect for cycling roles
   useEffect(() => {
-    if (!API_BASE) {
-      console.error("API base URL is not configured.");
-      return;
-    }
     const interval = setInterval(() => {
       setCurrentRole((prev) => (prev + 1) % roles.length)
     }, 3000)
     return () => clearInterval(interval)
-  }, [API_BASE])
+  }, [])
 
   // Effect for generating animated background particles
   useEffect(() => {
-    if (!API_BASE) {
-      console.error("API base URL is not configured.");
-      return;
-    }
-    const generatedParticles: AnimatedParticle[] = [...Array(10)].map((_, i) => ({
+    const generatedParticles: AnimatedParticle[] = Array.from({ length: 10 }, (_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
       top: `${Math.random() * 100}%`,
@@ -107,7 +109,7 @@ export default function HeroSection() {
       duration: Math.random() * 15 + 10,
     }))
     setAnimatedParticles(generatedParticles)
-  }, [API_BASE])
+  }, [])
 
   const handleHireMeClick = () => {
     setShowContactModal(true)
@@ -119,7 +121,7 @@ export default function HeroSection() {
       email: '',
       message: '',
       projectType: 'freelance',
-      budget: '50000-250000',
+      budget: '50000-100000',
       company: ''
     })
   }
@@ -127,7 +129,7 @@ export default function HeroSection() {
   const handleQuickEmail = () => {
     const subject = "Opportunity for Collaboration"
     const body = `Hello Venu,\n\nI saw your portfolio and would like to discuss a potential collaboration.\n\nBest regards,\n[Your Name]`
-            window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@example.com'}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank')
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@example.com'}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank')
     setShowContactModal(false)
   }
 
@@ -138,14 +140,29 @@ export default function HeroSection() {
   const handleDownloadResume = async () => {
     setResumeState('loading')
     const fileName = `Venu_Thota_Resume_${new Date().toISOString().slice(0, 10)}.pdf`
+    
     try {
-      const apiResponse = await fetch(`${API_BASE}/api/resume`)
+      // First try the API endpoint
+      const apiResponse = await fetch(`${API_BASE}/api/resume`, {
+        credentials: 'include',
+        headers: {
+          'Origin': window.location.origin
+        }
+      })
+
       if (apiResponse.ok) {
         const blob = await apiResponse.blob()
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.download = apiResponse.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || fileName
+        
+        // Get filename from Content-Disposition header or use default
+        const contentDisposition = apiResponse.headers.get('Content-Disposition')
+        const filename = contentDisposition 
+          ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+          : fileName
+
+        link.download = filename
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -153,9 +170,9 @@ export default function HeroSection() {
         setResumeState('idle')
         return
       }
-      // Try static fallback
-      const localPath = '/uploads/VENU_THOTA.pdf'
-      const fallbackResponse = await fetch(localPath)
+
+      // Fallback to static file if API fails
+      const fallbackResponse = await fetch('/uploads/VENU_THOTA.pdf')
       if (fallbackResponse.ok) {
         const blob = await fallbackResponse.blob()
         const url = window.URL.createObjectURL(blob)
@@ -169,22 +186,13 @@ export default function HeroSection() {
         setResumeState('idle')
         return
       }
-      // If both fail, show error
-      if (typeof toast === 'function') {
-        toast.error('Resume is currently unavailable. Please try again later.')
-      } else {
-        alert('Resume is currently unavailable. Please try again later.')
-      }
-      setResumeState('error')
-      setTimeout(() => setResumeState('idle'), 3000)
+
+      // If both methods fail
+      throw new Error('Failed to fetch resume from both endpoints')
     } catch (error) {
       console.error('Resume download error:', error)
-      if (typeof toast === 'function') {
-        toast.error('Resume is currently unavailable. Please try again later.')
-      } else {
-        alert('Resume is currently unavailable. Please try again later.')
-      }
       setResumeState('error')
+      toast.error('Resume is currently unavailable. Please try again later.')
       setTimeout(() => setResumeState('idle'), 3000)
     }
   }
@@ -195,6 +203,7 @@ export default function HeroSection() {
     setFormErrors({})
 
     try {
+      // Client-side validation first
       const parsedData = contactFormSchema.parse(formData)
 
       const response = await fetch(`${API_BASE}/api/contact`, {
@@ -205,49 +214,49 @@ export default function HeroSection() {
         body: JSON.stringify(parsedData),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Server error')
+      }
+
       const result = await response.json()
 
-      if (response.ok && result.success) {
+      if (result.success) {
         setHireMeState('success')
+        toast.success('Message sent successfully!')
         setTimeout(() => {
           setShowContactModal(false)
           setShowContactForm(false)
-        }, 2000)
-        setFormData({
-          name: '',
-          email: '',
-          message: '',
-          projectType: 'freelance',
-          budget: '50000-250000',
-          company: ''
-        })
-      } else {
-        setHireMeState('error')
-        if (result.issues) {
-          const errors: Record<string, string> = {}
-          result.issues.forEach((issue: { field: string; message: string }) => {
-            errors[issue.field] = issue.message
+          setFormData({
+            name: '',
+            email: '',
+            message: '',
+            projectType: 'freelance',
+            budget: '50000-100000',
+            company: ''
           })
-          setFormErrors(errors)
-        } else if (result.error) {
-          setFormErrors({ general: result.error })
-        } else if (result.message) {
-          setFormErrors({ general: result.message })
-        }
-        console.error('Form submission error:', result.error || result.message || 'Unknown server error')
+        }, 2000)
+      } else {
+        throw new Error(result.message || 'Submission failed')
       }
     } catch (error) {
+      setHireMeState('error')
+      
       if (error instanceof z.ZodError) {
         const errors: Record<string, string> = {}
         error.errors.forEach((err) => {
-          errors[err.path[0]] = err.message
+          if (err.path.length > 0) {
+            errors[err.path[0]] = err.message
+          }
         })
         setFormErrors(errors)
+      } else if (error instanceof Error) {
+        setFormErrors({ general: error.message })
       } else {
-        setFormErrors({ general: 'An unexpected error occurred. Please try again.' })
+        setFormErrors({ general: 'An unexpected error occurred' })
       }
-      setHireMeState('error')
-      console.error('Client-side form submission error:', error)
+      
+      toast.error(formErrors.general || 'Failed to submit form')
     }
   }
 
@@ -276,6 +285,7 @@ export default function HeroSection() {
           width={64}
           height={64}
           className="object-contain"
+          priority
         />
       </div>
       
@@ -435,9 +445,11 @@ export default function HeroSection() {
                           onChange={handleInputChange}
                           className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
                         >
-                          <option value="25000-50000">₹25,000 - ₹50,000</option>
-                          <option value="50000-250000">₹50,000 - ₹2,50,000</option>
-                          <option value="250000+">₹2,50,000+</option>
+                          {budgetOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div>

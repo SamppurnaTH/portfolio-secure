@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Read and split comma-separated origins from env
-const ALLOWED_ORIGINS: string[] = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()) || [];
+const ALLOWED_ORIGINS: string[] = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()).filter(o => o) || [];
 
 export function withCors(response: NextResponse, request: NextRequest): NextResponse {
   const origin = request.headers.get("origin");
