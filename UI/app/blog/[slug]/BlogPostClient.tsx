@@ -42,49 +42,10 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
       }
     };
 
-    // Increment view count when the blog post is viewed
-    const incrementView = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/posts/${post?._id}/view`, { method: "POST" });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          console.error("Failed to increment blog post view:", data.error || res.statusText);
-        } else {
-          console.log("Increment blog post view response:", data);
-        }
-      } catch (err) {
-        console.error("Error incrementing blog post view:", err);
-      }
-    };
-
     if (slug) {
       fetchPostAndIncrementView();
     }
   }, [slug]);
-
-  // Increment view after post is loaded
-  useEffect(() => {
-    if (post?._id) {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-      if (!API_BASE) {
-        throw new Error('API base URL is not configured.');
-      }
-      const incrementView = async () => {
-        try {
-          const res = await fetch(`${API_BASE}/api/posts/${post._id}/view`, { method: "POST" });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            console.error("Failed to increment blog post view:", data.error || res.statusText);
-          } else {
-            console.log("Increment blog post view response:", data);
-          }
-        } catch (err) {
-          console.error("Error incrementing blog post view:", err);
-        }
-      };
-      incrementView();
-    }
-  }, [post?._id]);
 
   if (loading) return <div className="text-center py-8">Loading blog post...</div>;
   if (error) return <div className="text-center py-8 text-red-500">Error: {error}</div>;

@@ -6,6 +6,7 @@ import { Download, Mail, Github, Linkedin, Code, Database, Shield, Brain, Loader
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { z } from "zod"
+import { toast } from "sonner"; // Add this import if you use sonner for toasts
 
 // Define types
 interface AnimatedParticle {
@@ -137,10 +138,8 @@ export default function HeroSection() {
   const handleDownloadResume = async () => {
     setResumeState('loading')
     const fileName = `Venu_Thota_Resume_${new Date().toISOString().slice(0, 10)}.pdf`
-    
     try {
       const apiResponse = await fetch(`${API_BASE}/api/resume`)
-      
       if (apiResponse.ok) {
         const blob = await apiResponse.blob()
         const url = window.URL.createObjectURL(blob)
@@ -154,19 +153,37 @@ export default function HeroSection() {
         setResumeState('idle')
         return
       }
-
-      console.log('API resume download failed or not found, attempting local fallback...')
+      // Try static fallback
       const localPath = '/uploads/VENU_THOTA.pdf'
-      const link = document.createElement('a')
-      link.href = localPath
-      link.download = fileName
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      setResumeState('idle')
-      
+      const fallbackResponse = await fetch(localPath)
+      if (fallbackResponse.ok) {
+        const blob = await fallbackResponse.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = fileName
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        setResumeState('idle')
+        return
+      }
+      // If both fail, show error
+      if (typeof toast === 'function') {
+        toast.error('Resume is currently unavailable. Please try again later.')
+      } else {
+        alert('Resume is currently unavailable. Please try again later.')
+      }
+      setResumeState('error')
+      setTimeout(() => setResumeState('idle'), 3000)
     } catch (error) {
       console.error('Resume download error:', error)
+      if (typeof toast === 'function') {
+        toast.error('Resume is currently unavailable. Please try again later.')
+      } else {
+        alert('Resume is currently unavailable. Please try again later.')
+      }
       setResumeState('error')
       setTimeout(() => setResumeState('idle'), 3000)
     }

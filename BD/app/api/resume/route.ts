@@ -1,18 +1,10 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { withCors, handleOptions } from "@/lib/cors";
 import { authenticateRequest } from "@/lib/auth";
+import { put, get, del } from "@vercel/blob";
 
-// Constants
-// Use /tmp for serverless compatibility (Vercel, etc.)
-const UPLOADS_DIR = "/tmp";
-const RESUME_FILENAME = "VENU_THOTA.pdf";
+const RESUME_BLOB_KEY = "resume/VENU_THOTA.pdf";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-async function ensureUploadsDir() {
-  await fs.mkdir(UPLOADS_DIR, { recursive: true });
-}
 
 export async function OPTIONS(request: NextRequest) {
   return handleOptions(request);
@@ -23,31 +15,22 @@ export async function OPTIONS(request: NextRequest) {
 // ------------------------------------
 export async function GET(request: NextRequest) {
   try {
-    await ensureUploadsDir();
-    const resumePath = path.join(UPLOADS_DIR, RESUME_FILENAME);
-
-    try {
-      await fs.access(resumePath);
-    } catch {
+    const blob = await get(RESUME_BLOB_KEY);
+    if (!blob) {
       return withCors(
         NextResponse.json({ message: "Resume not found." }, { status: 404 }),
         request
       );
     }
-
-    const file = await fs.readFile(resumePath);
-    const stats = await fs.stat(resumePath);
-
-    const response = new NextResponse(file, {
+    const response = new NextResponse(blob.body, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${RESUME_FILENAME}"`,
-        "Content-Length": stats.size.toString(),
+        "Content-Disposition": `attachment; filename=\"VENU_THOTA.pdf\"`,
+        "Content-Length": blob.size.toString(),
         "Cache-Control": "public, max-age=3600"
       },
     });
-
     return withCors(response, request);
   } catch (error) {
     console.error("GET /resume error:", error);
@@ -63,6 +46,9 @@ export async function GET(request: NextRequest) {
 // ------------------------------------
 export async function POST(request: NextRequest) {
   try {
+    const authResponse = await authenticateRequest(request);
+    if (authResponse instanceof NextResponse) return authResponse;
+
     let formData;
     try {
       formData = await request.formData();
@@ -111,47 +97,25 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await ensureUploadsDir();
-    } catch (mkdirErr) {
-      console.error("[RESUME UPLOAD] Error creating uploads dir:", mkdirErr);
+      await put(RESUME_BLOB_KEY, buffer, {
+        access: "public",
+        contentType: "application/pdf"
+      });
+    } catch (uploadErr) {
+      console.error("[RESUME UPLOAD] Error uploading to blob storage:", uploadErr);
       return withCors(
-        NextResponse.json({ message: "Failed to create upload directory." }, { status: 500 }),
+        NextResponse.json({ message: "Failed to upload resume to storage." }, { status: 500 }),
         request
       );
     }
 
-    const tempPath = path.join(UPLOADS_DIR, `temp_${Date.now()}_${RESUME_FILENAME}`);
-    try {
-      await fs.writeFile(tempPath, buffer);
-    } catch (writeErr) {
-      console.error("[RESUME UPLOAD] Error writing file:", writeErr);
-      return withCors(
-        NextResponse.json({ message: "Failed to save uploaded file." }, { status: 500 }),
-        request
-      );
-    }
-
-    const resumePath = path.join(UPLOADS_DIR, RESUME_FILENAME);
-    try {
-      await fs.rename(tempPath, resumePath);
-    } catch (renameErr) {
-      console.error("[RESUME UPLOAD] Error renaming file:", renameErr);
-      return withCors(
-        NextResponse.json({ message: "Failed to finalize uploaded file." }, { status: 500 }),
-        request
-      );
-    }
-
-    const baseURL = request.nextUrl.origin || process.env.API_BASE_URL;
-    if (!baseURL) {
-      throw new Error('API_BASE_URL environment variable is not configured');
-    }
-    const resumeUrl = `${baseURL}/uploads/${RESUME_FILENAME}`;
+    // The public URL for the blob
+    const blobUrl = `https://${process.env.VERCEL_BLOB_URL || "blob.vercel-storage.com"}/${RESUME_BLOB_KEY}`;
 
     return withCors(
       NextResponse.json({
         message: "Resume uploaded successfully.",
-        data: { url: resumeUrl }
+        data: { url: blobUrl }
       }),
       request
     );
@@ -172,19 +136,16 @@ export async function DELETE(request: NextRequest) {
     const authResponse = await authenticateRequest(request);
     if (authResponse instanceof NextResponse) return authResponse;
 
-    await ensureUploadsDir();
-    const resumePath = path.join(UPLOADS_DIR, RESUME_FILENAME);
-
     try {
-      await fs.access(resumePath);
-    } catch {
+      await del(RESUME_BLOB_KEY);
+    } catch (delErr) {
+      console.error("[RESUME DELETE] Error deleting from blob storage:", delErr);
       return withCors(
-        NextResponse.json({ message: "Resume not found." }, { status: 404 }),
+        NextResponse.json({ message: "Failed to delete resume from storage." }, { status: 500 }),
         request
       );
     }
 
-    await fs.unlink(resumePath);
     return withCors(
       NextResponse.json({ message: "Resume deleted successfully." }),
       request

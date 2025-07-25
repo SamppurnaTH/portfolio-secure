@@ -42,24 +42,8 @@ export default function ProjectDetailClient({ id }: ProjectDetailClientProps) {
       }
     };
 
-    // Increment view count when the project is viewed
-    const incrementView = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/projects/${id}/view`, { method: "POST" });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          console.error("Failed to increment view:", data.error || res.statusText);
-        } else {
-          console.log("Increment view response:", data);
-        }
-      } catch (err) {
-        console.error("Error incrementing view:", err);
-      }
-    };
-
     if (id) {
       fetchProjectAndIncrementView();
-      incrementView();
     }
   }, [id]);
 
