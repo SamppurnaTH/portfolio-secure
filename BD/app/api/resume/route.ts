@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import path from "path";
+import fs from "fs/promises";
 import { withCors, handleOptions } from "@/lib/cors";
 import { authenticateRequest } from "@/lib/auth";
-import { put, get, del } from "@vercel/blob";
 
-const RESUME_BLOB_KEY = "resume/VENU_THOTA.pdf";
+const RESUME_FILENAME = "VENU_THOTA.pdf";
+const RESUME_PATH = path.join(process.cwd(), "public", "uploads", RESUME_FILENAME);
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function OPTIONS(request: NextRequest) {
@@ -11,38 +13,31 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 // ------------------------------------
-// GET: Public resume download
+// GET: Serve resume from local file system
 // ------------------------------------
 export async function GET(request: NextRequest) {
   try {
-    const blob = await get(RESUME_BLOB_KEY);
-    if (!blob) {
-      return withCors(
-        NextResponse.json({ message: "Resume not found." }, { status: 404 }),
-        request
-      );
-    }
-    const response = new NextResponse(blob.body, {
+    const fileBuffer = await fs.readFile(RESUME_PATH);
+    return new NextResponse(fileBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename=\"VENU_THOTA.pdf\"`,
-        "Content-Length": blob.size.toString(),
-        "Cache-Control": "public, max-age=3600"
+        "Content-Disposition": `attachment; filename="${RESUME_FILENAME}"`,
+        "Content-Length": fileBuffer.length.toString(),
+        "Cache-Control": "public, max-age=3600",
       },
     });
-    return withCors(response, request);
   } catch (error) {
     console.error("GET /resume error:", error);
-    return withCors(
-      NextResponse.json({ message: "Internal server error." }, { status: 500 }),
-      request
+    return new NextResponse(
+      JSON.stringify({ message: "Resume not found." }),
+      { status: 404, headers: { "Content-Type": "application/json" } }
     );
   }
 }
 
 // ------------------------------------
-// POST: Admin resume upload
+// POST: Upload resume to local file system
 // ------------------------------------
 export async function POST(request: NextRequest) {
   try {
@@ -52,109 +47,45 @@ export async function POST(request: NextRequest) {
     let formData;
     try {
       formData = await request.formData();
-    } catch (formErr) {
-      console.error("[RESUME UPLOAD] Error parsing FormData:", formErr);
-      return withCors(
-        NextResponse.json({ message: "Failed to parse form data." }, { status: 400 }),
-        request
-      );
+    } catch (err) {
+      console.error("[UPLOAD] Error parsing form data:", err);
+      return NextResponse.json({ message: "Invalid form data." }, { status: 400 });
     }
 
     const file = (formData.get("file") || formData.get("resume")) as File | null;
     if (!file) {
-      return withCors(
-        NextResponse.json({ message: "No file uploaded." }, { status: 400 }),
-        request
-      );
+      return NextResponse.json({ message: "No file uploaded." }, { status: 400 });
     }
 
     if (file.type !== "application/pdf") {
-      return withCors(
-        NextResponse.json({ message: "Only PDF files are allowed." }, { status: 400 }),
-        request
-      );
+      return NextResponse.json({ message: "Only PDF files are allowed." }, { status: 400 });
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return withCors(
-        NextResponse.json(
-          { message: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit.` },
-          { status: 400 }
-        ),
-        request
+      return NextResponse.json(
+        { message: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit.` },
+        { status: 400 }
       );
     }
 
-    let buffer;
-    try {
-      buffer = Buffer.from(await file.arrayBuffer());
-    } catch (bufErr) {
-      console.error("[RESUME UPLOAD] Error converting file to buffer:", bufErr);
-      return withCors(
-        NextResponse.json({ message: "Failed to process uploaded file." }, { status: 500 }),
-        request
-      );
-    }
+    const buffer = Buffer.from(await file.arrayBuffer());
 
     try {
-      await put(RESUME_BLOB_KEY, buffer, {
-        access: "public",
-        contentType: "application/pdf"
-      });
-    } catch (uploadErr) {
-      console.error("[RESUME UPLOAD] Error uploading to blob storage:", uploadErr);
-      return withCors(
-        NextResponse.json({ message: "Failed to upload resume to storage." }, { status: 500 }),
-        request
-      );
+      await fs.mkdir(path.dirname(RESUME_PATH), { recursive: true });
+      await fs.writeFile(RESUME_PATH, buffer);
+    } catch (writeErr) {
+      console.error("[UPLOAD] Failed to save file locally:", writeErr);
+      return NextResponse.json({ message: "Failed to save resume." }, { status: 500 });
     }
 
-    // The public URL for the blob
-    const blobUrl = `https://${process.env.VERCEL_BLOB_URL || "blob.vercel-storage.com"}/${RESUME_BLOB_KEY}`;
+    const resumeUrl = `${request.nextUrl.origin}/uploads/${RESUME_FILENAME}`;
 
-    return withCors(
-      NextResponse.json({
-        message: "Resume uploaded successfully.",
-        data: { url: blobUrl }
-      }),
-      request
-    );
+    return NextResponse.json({
+      message: "Resume uploaded successfully.",
+      data: { url: resumeUrl },
+    });
   } catch (error) {
     console.error("POST /resume error:", error);
-    return withCors(
-      NextResponse.json({ message: "Failed to upload resume." }, { status: 500 }),
-      request
-    );
-  }
-}
-
-// ------------------------------------
-// DELETE: Admin resume deletion
-// ------------------------------------
-export async function DELETE(request: NextRequest) {
-  try {
-    const authResponse = await authenticateRequest(request);
-    if (authResponse instanceof NextResponse) return authResponse;
-
-    try {
-      await del(RESUME_BLOB_KEY);
-    } catch (delErr) {
-      console.error("[RESUME DELETE] Error deleting from blob storage:", delErr);
-      return withCors(
-        NextResponse.json({ message: "Failed to delete resume from storage." }, { status: 500 }),
-        request
-      );
-    }
-
-    return withCors(
-      NextResponse.json({ message: "Resume deleted successfully." }),
-      request
-    );
-  } catch (error) {
-    console.error("DELETE /resume error:", error);
-    return withCors(
-      NextResponse.json({ message: "Failed to delete resume." }, { status: 500 }),
-      request
-    );
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 }
